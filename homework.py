@@ -35,11 +35,12 @@ def check_tokens():
 def send_message(bot, message):
     """Отправление сообщения в Телеграмм."""
     try:
-        logger.debug('Удачная отправка сообщения в телеграмм '
-                     f'{TELEGRAM_CHAT_ID}: {message}')
         bot.send_message(TELEGRAM_CHAT_ID, message)
+        # без этого не идут тесты
         logging.debug('Удачная отправка сообщения в телеграмм '
                       f'{TELEGRAM_CHAT_ID}: {message}')
+        logger.debug('Удачная отправка сообщения в телеграмм '
+                     f'{TELEGRAM_CHAT_ID}: {message}')
     except Exception as error:
         logging.error(f'Ошибка отправки сообщения в телеграм: {error}')
 
