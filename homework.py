@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
@@ -36,11 +38,9 @@ def send_message(bot, message):
     """Отправление сообщения в Телеграмм."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        # без этого не идут тесты
         logging.debug('Удачная отправка сообщения в телеграмм '
                       f'{TELEGRAM_CHAT_ID}: {message}')
-        logger.debug('Удачная отправка сообщения в телеграмм '
-                     f'{TELEGRAM_CHAT_ID}: {message}')
+        logger.debug('Удачная отправка сообщения в телеграмм ')
     except Exception as error:
         logging.error(f'Ошибка отправки сообщения в телеграм: {error}')
 
@@ -52,9 +52,16 @@ def get_api_answer(timestamp):
         response = requests.get(ENDPOINT, headers=HEADERS, params=payload)
     except Exception as error:
         logger.error(f'Ошибка при запросе к основному API: {error}')
+        raise Exception(f'Ошибка при запросе к основному API: {error}')
     if response.status_code != HTTPStatus.OK:
         logger.error('Недоступность эндпоинта https://practicum.yandex.ru')
-    return response.json()
+        raise Exception('Недоступность эндпоинта https://practicum.yandex.ru')
+    try:
+        homework_response = response.json()
+    except ValueError:
+        logging.error('Ошибка парсинга ответа из формата json')
+        raise ValueError('Ошибка парсинга ответа из формата json')
+    return homework_response
 
 
 def check_response(response):
@@ -65,10 +72,13 @@ def check_response(response):
     if 'homeworks' not in response:
         logging.error('Отсутствует ключ "homeworks" в ответе API')
         raise KeyError('Отсутствует ключ "homeworks" в ответе API')
-    homework = response.get('homeworks')
+    homework = response['homeworks']
     if not isinstance(homework, list):
         logging.error('Ответ "homeworks" данные не ввиде списка')
         raise TypeError('Ответ "homeworks" данные не ввиде списка')
+    if len(homework) == 0:
+        logging.error('Список домашних работ пуст')
+        raise IndexError('Список домашних работ пуст')
     return homework[0]
 
 
@@ -96,21 +106,20 @@ def main():
         raise Exception('Отсутствие обязательных переменных')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    MESSAGE_TRY = ''
-    MESSAGE_ERROR = ''
+    message_try = ''
     while True:
         try:
-            response = get_api_answer(timestamp)
-            homework = check_response(response)
+            homework_response = get_api_answer(timestamp)
+            homework = check_response(homework_response)
             message = parse_status(homework)
-            if message != MESSAGE_TRY:
+            if message != message_try:
                 send_message(bot, message=message)
-                MESSAGE_TRY = message
+                message_try = message
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            if message != MESSAGE_ERROR:
+            if message != message_try:
                 bot.send_message(TELEGRAM_CHAT_ID, message)
-                MESSAGE_ERROR = message
+                message_try = message
         finally:
             time.sleep(RETRY_PERIOD)
 
@@ -120,8 +129,8 @@ if __name__ == '__main__':
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.DEBUG,
         filename='program.log',
-        encoding='utf--8')
-    logger = logging.getLogger(__name__)
+        encoding='utf--8'
+    )
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler(
         stream=sys.stdout)
