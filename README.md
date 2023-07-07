@@ -1,9 +1,9 @@
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 
-### **Учебный проект Telegram bot**
+## **Учебный проект Telegram bot**
 Telegram bot отслеживания статуса отправленной на ревью домашней работы и присылает уведомлении.
 
-#### **Установка**
+## **Установка**
 Клонируем репозиторий:
 ```python
 git@github.com:Maksim1301/homework_bot.git
